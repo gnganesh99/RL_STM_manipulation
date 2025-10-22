@@ -1,0 +1,10 @@
+a_lr: 0.0001
+c_lr: 0.0003
+tau: 0.005
+gamma: 0.8
+alpha: 0.1
+target_entropy: -2.0
+num_updates: 100000
+batch_size: 256
+buffer_name: rescaled1_manipulation_dataset_buffer.h5
+weight_decay: 1e-06

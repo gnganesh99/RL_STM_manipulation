@@ -1,0 +1,43 @@
+target_control =   {
+                    "target_type": "random",
+                    "dmin":0.1  # minimum distance between initial and final coords.
+                    }
+
+
+
+
+target_control =   {
+                    "target_type": "random_with_anchor",  
+                    "anchor": {"condition": False, "anchor_idx":0, "anchor_point":[0.1, 0.1]}
+                    "dmin_anchor_target":0.1,
+                    "d_constant_anchor": None,
+                    "drift_comp": "trigger_on_anchor"
+                   }
+
+
+
+
+
+target_control =   {
+                    "target_type": "random_with_anchor",  
+                    "anchor": {"condition": False, "anchor_idx":0, "anchor_point":[0.5, 0.5]}
+                    "dmin_anchor_target":None,
+                    "d_constant_anchor": 0.1,
+                    "drift_comp": "trigger_on_anchor"
+                   }
+
+
+
+
+
+
+
+
+target_coords = [[0.3, 0.3], [0.7, 0.7]]  # Used only if target_type is "user_input"
+
+target_control =   {
+                    "target_type": "user_input",
+                    "target_coords":np.asarray(target_coords)
+                    "anchor":{"condition": False, "anchor_idx":0} 
+                     "drift_comp": "trigger_on_anchor" 
+                    }

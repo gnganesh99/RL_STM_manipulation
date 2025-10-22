@@ -1,0 +1,7 @@
+12 oct 2025
+For the param model, this shows decent predictions:
+C:\Users\Administrator\Py_Scripts_ganesh\manipulation_scripts_3\rl_models\rl_models\param\rescaled2_training22_a_lr1e-4_weight_decay1e-6\sac_agent_cql_10000.pth
+range = [[0.01, 0.03], [70, 90],[0.5, 5]]
+
+for offset_model
+C:\Users\Administrator\Py_Scripts_ganesh\manipulation_scripts_3\rl_models\rl_models\offset\sac_agent_cql_100000.pth

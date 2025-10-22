@@ -1,0 +1,9 @@
+the buffer was combined from the following expts:
+
+folders = ['RL3_random_wa', 'RL5_random_wa', 'RL6_random_wa', 'RL7_random_wa', 'RL8_random_wa', 'RL9_random_wa', 'RL10_random_wa_dcons2p5nm', 'RL15_random_wa_dcons1p5nm', 'RL16_random_wa_dcons1p5nm', 'RL17_random_wa_dcons1p5nm', 'RL18_random_wa_dcons2nm', 'RL19_random_wa_dcons3nm', 'RL20_random_wa_dcons3nm']
+
+
+in rescaled2_combined_replay_buffer,h5:
+
+original_action_range = [[15, 20], [80, 90], [0.5, 5]]
+new_action_range = [[10, 30], [70, 90], [0.5, 5]]
