@@ -8,13 +8,12 @@ In this work, we develop an automated framework for scanning tunneling microscop
 This project implements automated STM (Scanning Tunneling Microscope) manipulation using reinforcement learning (RL) agents. The system leverages deep reinforcement learning techniques, specifically Soft Actor-Critic (SAC) algorithm, to enable intelligent manipulation of molecules and atoms at the nanoscale. The methodology combines computer vision for molecular detection using YOLO object detection models with multi-objective reinforcement learning for adaptive manipulation strategies.
 
 The system operates by detecting molecular positions through automated image analysis, planning manipulation trajectories using path planning algorithms (including RRT* for obstacle avoidance), and executing precise manipulation actions through learned RL policies. 
+
 We employ two RL agents:
 
-1. Parameter agent
-    - Learns to optimize manipulation parameters such as bias voltage, setpoint current, and tip speed based on real-time feedback from the STM environment.
+1. Parameter agent: Learns to optimize manipulation parameters such as bias voltage, setpoint current, and tip speed based on real-time feedback from the STM environment.
 
-2. Positioning agent
-    - Learns and introduces target-positioning offsets according to the local molecular configuration described in the state variables.
+2. Positioning agent: Learns and introduces target-positioning offsets according to the local molecular configuration described in the state variables.
 
 The notebook `Manipulation_MO_sac_gui_user_input.ipynb` serves as the primary interface to drive automated experiments, allowing users to input target configurations and initiate autonomous manipulation sequences through an intuitive GUI-based workflow.
 
