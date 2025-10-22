@@ -15,7 +15,7 @@ We employ two RL agents:
 
 2. Positioning agent: Learns and introduces target-positioning offsets according to the local molecular configuration described in the state variables.
 
-The notebook `Manipulation_MO_sac_gui_user_input.ipynb` serves as the primary interface to drive automated experiments, allowing users to input target configurations and initiate autonomous manipulation sequences through an intuitive GUI-based workflow.
+The notebook **`Manipulation_MO_sac_gui_user_input.ipynb`** serves as the primary interface to drive automated experiments, allowing users to input target configurations and initiate autonomous manipulation sequences through an intuitive GUI-based workflow.
 
 ## Key Components
 
