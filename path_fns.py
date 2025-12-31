@@ -978,6 +978,155 @@ def target_avoid_collision(target_i, target_f, all_labels, margin, padding = 0.0
 
 
 
+
+def target_avoid_collision_1(target_i, target_f, all_labels, margin, padding = 0.0, x_initial = None, eps = 0.01, retrace_fr = 0.99,
+                             overlap_iou_th = 0.2):
+    
+
+    """
+    Avoids collisions with other objects by adjusting the target final coordinates.
+    If a collision is detected, the target final coordinates are adjusted to retrace along the path to avoid the obstacle.
+
+    Inputs:
+        - target_i: initial target coordinates (numpy array of shape (1, 2))
+        - target_f: final target coordinates (numpy array of shape (1, 2))
+        - all_labels: tuple of (labels, bw, bh) where labels is a numpy array of shape (N, 2) containing the coordinates of other objects,
+                      bw and bh are numpy arrays of shape (N,) containing the width and height of the objects respectively.
+        - margin: margin to keep from the edges (float)
+        - padding: additional padding to consider around the objects (float)
+        - x_initial: initial coordinates of the object being manipulated (numpy array of shape (1, 2))
+        - eps: small value to determine convergence (float)
+        - retrace_fr: fraction to retrace along the path when a collision is detected (float between 0 and 1)
+        - overlap_iou_th: IOU threshold to consider overlap with initial target (float)
+
+    Outputs:
+        - target_f: adjusted final target coordinates (numpy array of shape (1, 2))
+        - info: string indicating whether collisions were avoided or not
+
+    """
+
+
+    retrace_fr = np.clip(retrace_fr, 0, 0.99) #retract_fraction
+    labels, bw, bh = all_labels
+    labels, bw, bh = np.asarray(labels).copy(), np.asarray(bw).copy(), np.asarray(bh).copy()
+    
+    manipulation_angle = x_initial[0][4]
+    x_initial = x_initial[:, 0:2].copy()
+     
+    
+    pad_fac = 1.1  #additional padding_factor. 5 %
+
+    target_i, target_f = target_i.ravel().copy(), target_f.ravel().copy()
+
+    # Remove the label corresponding to the molecule being manipulated.
+    if len(labels) > 0:
+        all_distances = np.linalg.norm(labels - x_initial, axis=1)
+        closest_idx = np.argmin(all_distances)
+        bw_i = bw[closest_idx]
+        bh_i = bh[closest_idx]
+
+        labels = np.delete(labels, closest_idx, axis=0)
+        bw = np.delete(bw, closest_idx, axis=0)
+        bh = np.delete(bh, closest_idx, axis=0)
+
+    if labels is None or len(labels) == 0 :
+        target_f = np.clip(target_f, margin, 1-margin)
+        target_f  = np.ravel(target_f).reshape(1, -1)
+        return target_f, "No labels to avoid"
+
+    
+    # If the target_i marginally overlaps with an obstacle, shrink the obstacle until they don't overlap
+    for i, label in enumerate(labels):
+        obstacle = [label[0], label[1], bw[i], bh[i]]
+        targeti_rect = [target_i[0], target_i[1], (bw_i+2*padding)*pad_fac, (bh_i+2*padding)*pad_fac]
+        
+        dx, dy = intersection_dxdy(targeti_rect, obstacle)
+        init_area = dx*dy
+
+        if calc_iou(targeti_rect, obstacle) < overlap_iou_th: #shrink the obstacle until they don't overlap
+            while True:
+                dx, dy = intersection_dxdy(targeti_rect, obstacle)
+                if dx<=dy: #reduce the smaller overlaping dimension.
+                    bw[i] *= 0.95
+                else:
+                    bh[i] *= 0.95
+                obstacle = [label[0], label[1], bw[i], bh[i]]
+                if calc_iou(targeti_rect, obstacle) == 0 or dx*dy < init_area/5:
+                    break
+
+
+    # # avoid collisions with target_i.
+    # while True:
+    #     collision_indices = get_collision_indices(target_i, target_i, labels, bw, bh, padding = ((bw_i+bh_i)/4 + padding)*pad_fac)
+    #     if len(collision_indices) == 0:
+    #         break
+            
+    #     coll_idx =  collision_indices[0]
+    #     obs_rect = [labels[coll_idx][0], labels[coll_idx][1], bw[coll_idx], bh[coll_idx]]
+    #     iou_i = calc_iou(targeti_rect, obs_rect)
+        
+    #     if iou_i < overlap_iou_th:
+    #         bw[coll_idx] *= 0.95
+    #         bh[coll_idx] *= 0.95
+    #     else:
+    #         break
+
+        
+        
+    
+
+
+    # check for collision and intersection with other labels, give additioinal padding of (bw+bh)/4
+    count = 0
+    entry = ''
+    while True:
+        
+        collision_indices = get_collision_indices(target_i, target_f, labels, bw, bh, padding = ((bw_i+bh_i)/4 + padding)*pad_fac)
+        
+        rect_target_f = [target_f[0], target_f[1], bw_i*pad_fac, bh_i*pad_fac]
+        intersection_indices = get_intersection_indices(rect_target_f, labels, bw, bh)
+        
+        collision_free  = True if len(collision_indices) == 0 else False
+        intersection_free = True if len(intersection_indices) == 0 else False
+        #intersection_free = True
+
+        if collision_free and intersection_free:
+            break
+        target_f = point_on_segment(target_i, target_f, retrace_fr) #Retrace the target_f closer to target_i.
+        count += 1
+        
+        # for idx in collision_indices:
+        #     obs_rect = [labels[idx][0], labels[idx][1], bw[idx], bh[idx]]
+        #     iou_i = calc_iou(targeti_rect, obs_rect)
+        #     iou_f = calc_iou(rect_target_f, obs_rect)
+        #     entry += str(labels[idx])+f"  iou_i:{iou_i}     iou_f:{iou_f}"'\n'
+            
+        # entry += f"intitial_target:{target_i}, final_target: {target_f}"+'\n'
+        # with open("check_collision_avoidance1.txt", "a") as f:
+        #     f.write(entry)
+        
+        
+        print(f"Retraced by {count} steps")
+
+        if distance(target_i, target_f) < eps/2:
+            #target_f = target_i
+            x_offset, y_offset = compute_target_offset((bw_i+bh_i)/2, manipulation_angle, move_attempt = 1, delta_offset=0.3)
+            target_f = target_i+np.asarray([x_offset, y_offset])
+            #print("Direct offset added to target")
+            break
+        
+                   
+    
+    target_f = np.clip(target_f, margin, 1-margin)
+    target_f  = np.ravel(target_f).reshape(1, -1)
+
+    return target_f, "avoided collisions"
+
+
+
+
+
+
 def get_collision_indices(initial, final, labels, bw, bh, padding = 0):
 
     """
@@ -1004,6 +1153,43 @@ def get_collision_indices(initial, final, labels, bw, bh, padding = 0):
     
     return collision_indices
 
+
+
+
+def get_intersection_indices(rect_target, labels, bw, bh):
+    """
+    Check for intersections between a target rectangle and given labels (obstacles).
+    Inputs:
+        - rect_target: [x_center, y_center, width, height] of the target rectangle
+        - labels: array of shape (N, 2) containing the coordinates of the labels (obstacles)
+        - bw: array of shape (N,) containing the width of the labels
+        - bh: array of shape (N,) containing the height of the labels
+    Outputs:
+        - intersect_indices: list of indices of labels that intersect with the target rectangle
+    """
+
+    intersect_indices = []
+    for i, label in enumerate(labels):
+        obstacle = [label[0], label[1], bw[i], bh[i]]
+        intersect_area = intersection_area(rect_target, obstacle)
+        if intersect_area > 0:
+            intersect_indices.append(i)
+    
+    return intersect_indices
+
+
+
+
+def calc_iou(rect1, rect2):
+    """
+    Calculate the Intersection over Union (IoU) of two rectangles (xywh format).
+    """
+    intersect_area = intersection_area(rect1, rect2)
+    area1 = rect1[2] * rect1[3]
+    area2 = rect2[2] * rect2[3]
+    union_area = area1 + area2 - intersect_area
+    iou = intersect_area / union_area if union_area > 0 else 0
+    return iou
 
 
 
@@ -1073,6 +1259,41 @@ def point_on_segment(x_initial, x_final, fraction):
     x1, y1 = x_final
     t = float(fraction)
     return (x0 + t * (x1 - x0), y0 + t * (y1 - y0))
+
+
+
+
+def intersection_dxdy(rect1, rect2):
+
+    """
+    Calculate the width and height of the intersection area of two rectangles.
+    inputs:
+        rect1, rect2: [x_center, y_center, width, height]
+    Returns:
+        overlap_w, overlap_h: width and height of the intersection area (float, float)
+    """ 
+
+    points_to_corners = lambda r: (r[0]-r[2]/2, r[0]+r[2]/2, r[1]-r[3]/2, r[1]+r[3]/2)  # x1, x2, y1, y2
+
+    x1, x2, y1, y2 = points_to_corners(rect1)
+    x3, x4, y3, y4 = points_to_corners(rect2)
+
+    # normalize corners
+    xa1, xa2 = min(x1, x2), max(x1, x2)
+    ya1, ya2 = min(y1, y2), max(y1, y2)
+    xb1, xb2 = min(x3, x4), max(x3, x4)
+    yb1, yb2 = min(y3, y4), max(y3, y4)
+
+    # intersection bounds
+    xi1 = max(xa1, xb1)  # left
+    yi1 = max(ya1, yb1)  # bottom
+    xi2 = min(xa2, xb2)  # right
+    yi2 = min(ya2, yb2)  # top
+
+    overlap_w = max(0, xi2 - xi1)
+    overlap_h = max(0, yi2 - yi1)
+
+    return overlap_w, overlap_h
 
 
 

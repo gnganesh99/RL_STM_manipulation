@@ -21,7 +21,7 @@ from display_results import show_iter_image_results, show_iter_results
 from drift_estimation import drift_correction_far_labels
 from get_reward import get_displacement_reward, get_state_reward, get_state_reward_vector
 from get_target import Random_Target
-from path_fns import modify_state_coords, transform_to_real_coords, rescale_state_coords, rescale_initial_coords, rescale_target_coords, get_path, target_avoid_collision, object_stuck
+from path_fns import modify_state_coords, transform_to_real_coords, rescale_state_coords, rescale_initial_coords, rescale_target_coords, get_path, target_avoid_collision, object_stuck, target_avoid_collision_1
 from env_functions import *
 
 
@@ -49,55 +49,55 @@ class Manipulation_multi_object(Env):
         
         #State variables
 
-        self.basename = sxm_basename #  basename of the sxm files
-         
-        self.target_control = target_control  # dictionary specifying target selection method and parameters
+        self.basename = sxm_basename
+        
+        self.target_control = target_control
 
         
 
         
 
-        self.obj_idx = 0                        # index of the object being manipulated currently
+        self.obj_idx = 0
 
-        self.expt_dir = expt_dir               # Directory where the experiments files (.sxm) are stored.
-        self.st_offset_condition = st_offset   # manipulation offset condition at start of manipulation
-        self.end_offset_condition = end_offset  # manipulation offset condition at end of manipulation
-        self.margin = margin                    # margin to be maintained from the edges of the scan area while selecting targets
+        self.expt_dir = expt_dir
+        self.st_offset_condition = st_offset
+        self.end_offset_condition = end_offset
+        self.margin = margin  
         self.label_margin = label_margin
 
 
            
-        self.n_transitions = n_transitions                   # number of manipulation steps in an episode
+        self.n_transitions = n_transitions
              
-        self.default_action_params = default_action_params   # Default action parameters for the tip when not manipulating.
+        self.default_action_params = default_action_params
     
-        self.iterations = n_transitions                      # iterations left in the current episode
+        self.iterations = n_transitions
 
-        self.expt_name = expt_name                           # Name of the experiment (used for logging)
+        self.expt_name = expt_name
         
-        self.start_session = True                            # Flag to indicate start of a new session i.e, a change of the manipulated object.
+        self.start_session = True
         
-        self.iteration_count = 0                            # counts the number of iterations done in the current episode.
+        self.iteration_count = 0
         
-        self.continue_to_complete = continue_to_complete    # Flag to indicate whether to continue until the current object is complete.
+        self.continue_to_complete = continue_to_complete
         
-        self.prev_action_params = []                        # stores the previous action parameters for display purposes.
+        self.prev_action_params = []
         
         
         self.use_anchor, self.anchor_idx, self.anchor_placed = anchor # anchor_placed = True:anchor had been placed atleast once.
         
-        self.drift_comp = False                                             # Flag to indicate whether to perform drift compensation.
-        self.drift_comp_condition = self.drift_comp                # Condition for drift compensation. this can be a bool or str
+        self.drift_comp = False  
+        self.drift_comp_condition = self.drift_comp
         
-        self.avg_label_width = 0                             # average width of the labels in the current experiment.
+        self.avg_label_width = 0
 
-        self._finished = False                          # Flag to indicate all objects are complete.
-        self.complete_vec = None                        # Vector array indicating completion status of all objects.
-        self.stuck, self.stuck_count = False, 0     # stuck status and count of consecutive stuck iterations.
+        self._finished = False
+        self.complete_vec = None
+        self.stuck, self.stuck_count = False, 0
         
         
-        detect_dict = detect_dict.copy()            
-        self.detect_dict = detect_dict               # dictionary containing parameters for molecule detection.
+        detect_dict = detect_dict.copy()
+        self.detect_dict = detect_dict
         
     
         count_0 = 0
@@ -191,9 +191,18 @@ class Manipulation_multi_object(Env):
         target_w_offset0, self.info["target_offset"] = modify_state_coords(self.target, self.expt_dir, self.expt_name, label_width = self.avg_label_width, current_state = self.state, manipulation_offset = self.end_offset) # this is 2D
 
         # Ensure target is within bounds and not collide with labels.
-        target_w_offset, _ = target_avoid_collision(self.target, target_w_offset0, self.labels, self.margin, padding = 0.00, x_initial = self.state[:, 0:2], eps = self.reward_tolerance)  # this is 2D
+        #target_w_offset, _ = target_avoid_collision(self.target, target_w_offset0, self.labels, self.margin, padding = 0.00, x_initial = self.state[:, 0:2], eps = self.reward_tolerance)  # this is 2D
+        target_w_offset, _ = target_avoid_collision_1(self.target, target_w_offset0, self.labels, self.margin, padding = 0.00, x_initial = self.state, eps = self.reward_tolerance, retrace_fr = 0.9)
+
+
+        # Add the modified offset to the info after rescaling to range [-1, 1]    
+        self.info["modified_offset"] = rescale_action_params((target_w_offset.ravel() - self.target.ravel()), self.action_range["offset"], old_offset_range)
+    
         
-        
+
+        # # This is to have additional offset to the target for efficient manipulation!
+        # end_offset_1 = self.st_offset = {"type": "start_offset", "delta_offset":-0.1}
+        # target_w_offset, _ = modify_state_coords(target_w_offset, self.expt_dir, self.expt_name, label_width = self.avg_label_width, current_state = self.state, manipulation_offset = end_offset_1) # this is 2D
 
 
 
@@ -217,7 +226,7 @@ class Manipulation_multi_object(Env):
         print("Action:: ", action_dict)
         print("Rescaled_action: ", action_params)
         print(f"Drift compensation: {self.drift_comp}, Anchor placed:{self.anchor_placed}")
-        print(f"offset_action: {offset_action}, target_params: {tar_offset_params}, target_diff0:{(target_w_offset0[0] - self.target[0])}, target_difference: ({(target_w_offset[0] - self.target[0])}")
+        print(f"offset_action: {offset_action}, target_params: {tar_offset_params}, target_diff0:{(target_w_offset0[0] - self.target[0])}, target_difference: {(target_w_offset[0] - self.target[0])}, modified_offset: {self.info.get('modified_offset')}")
         print(f"Stuck: {self.stuck}, stuck_count:{self.stuck_count}")
 
 
@@ -232,7 +241,7 @@ class Manipulation_multi_object(Env):
             
         
         # log state action parameters      
-        log_parameters(self.expt_name, self.basename, self.expt_dir, self.state, self.corrected_states, action_params, self.norm_drift, X_current = self.X_current)
+        log_parameters(self.expt_name, self.basename, self.expt_dir, self.state, self.corrected_states, action_params, self.norm_drift, X_current = self.X_current, path = path)
         
         print(f"Initial_coords:{path_real_coords[0]}\tFinal_coords: {path_real_coords[-1]},\t drift: {self.norm_drift},\t Angle: {(1-self.state[0][-1])*360}\ndefault_params: {self.default_action_params}")
     
@@ -330,9 +339,7 @@ class Manipulation_multi_object(Env):
 
 
     def _get_target(self):
-
-        """ Get target positions based on the target selection method specified in self.target_control."""
-        
+        """ Get target positions based on the target_control dictionary."""
         
         
         if self.target_control is None:
@@ -409,7 +416,7 @@ class Manipulation_multi_object(Env):
 
 
     def _drift_comp(self):
-        """ Update drift compensation based on the specified condition in self.drift_comp_condition."""
+        """ Update drift compensation condition based on the self.drift_comp_condition"""
 
         if isinstance(self.drift_comp_condition, bool):
             self.drift_comp = self.drift_comp_condition
@@ -423,7 +430,8 @@ class Manipulation_multi_object(Env):
                 
     
     def _stuck_status(self):
-        """ Compute the stuck status based on the previous states."""
+
+        """ Determine if the object is stuck based on previous positions."""
 
         expt_log_dir = os.path.join(self.expt_dir, 'expt_log', self.expt_name)
         self.stuck, _ = object_stuck(self.state[:, 0:2], expt_log_dir, prev_i = 1, threshold = self.reward_tolerance)
@@ -442,9 +450,8 @@ class Manipulation_multi_object(Env):
         
     def _compute_reward(self, gcrl_reward = False, **kwargs):
         """ 
-        Compute the reward based on the current and previous states and targets.
-        Use gcrl_reward = True to compute reward for goal-conditioned RL, or to get reward for specific achieved and desired goals.
-        
+            Compute reward based on current and target positions.
+            If gcrl_reward is True, compute reward based on provided achieved_goal and goal.
         """
 
         if self.iteration_count == 0:
@@ -545,8 +552,10 @@ class Manipulation_multi_object(Env):
         return self.obj_idx
 
     def _start_session(self):
-        """ Update variables at the start of a new session (i.e, new object manipulation)."""          
-         
+
+        """ Update variables at the start of a new session (i.e, new object manipulation)."""  
+                   
+         # Redefine variables for new episode/trajectory
         if self.start_session:
             
             self.corrected_states = self.state[:, 0:2]
@@ -560,7 +569,6 @@ class Manipulation_multi_object(Env):
 
     
     def _wrap_state(self, state, labels, frame_length):
-
         """ Wrap the state to include additional information"""
     
         near_relative_coords = get_nearest_coords(state, labels[0], n_near = 3, frame_length = frame_length, cutoff_distance = 2E-9) #shape (1, 6)
