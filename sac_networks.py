@@ -323,8 +323,12 @@ class SACAgent:
 
         #Determine the target Q-value for next_state
         with torch.no_grad():
-            target_value = self.target_value(next_state)            
-            target_q_value = reward + (1 - done) * self.gamma * target_value        
+            target_value = self.target_value(next_state)
+
+            if self.gcrl:
+                target_q_value = reward + self.gamma * target_value    
+            else: 
+                target_q_value = reward + (1 - done) * self.gamma * target_value        
 
         # Critic loss - optimizes only the 
         q1, q2 = self.critic1(state, action), self.critic2(state, action)
@@ -421,8 +425,11 @@ class SACAgent:
         #Determine the target Q-value for next_state
         with torch.no_grad():
             next_action, next_log_prob, _ = self.actor(next_state)
-            target_value = self.target_value(next_state)            
-            target_q_value = reward + (1 - done) * self.gamma * target_value        
+            target_value = self.target_value(next_state)    
+            if self.gcrl:
+                target_q_value = reward + self.gamma * target_value
+            else:        
+                target_q_value = reward + (1 - done) * self.gamma * target_value        
 
         # Critic loss - optimizes only the 
         q1, q2 = self.critic1(state, action), self.critic2(state, action)
